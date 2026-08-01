@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"[Playbook reminder] Nếu yêu cầu này liên quan đến xây dựng app mới hoặc đại tu app hiện có trong app-factory này, đọc .claude/APP_BUILD_PLAYBOOK.md (qua CLAUDE.md) trước khi làm bất cứ điều gì khác.\"}}'"
+          }
+        ]
+      }
+    ]
+  }
+}

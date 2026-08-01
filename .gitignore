@@ -1,0 +1,8 @@
+# Mỗi project con là 1 git repo độc lập, có remote riêng — không track nội dung của chúng ở đây.
+/CareAi/
+/beverage-web/
+/dvc-api/
+/salon-web/
+/velox-web/
+
+.DS_Store
