@@ -255,6 +255,14 @@ Comment tự ghi rõ "revert trước khi commit" nhưng vẫn bị commit nguy�
 - Nếu cần test 1 app cụ thể trên simulator mà không đổi bundle id build thật được: test bằng cách tạm sửa Ở NƠI GỌI (VD truyền `bundle` param tường minh vào các hàm `getAppId(bundle?)`/`getAppName()` nếu hàm đó nhận tham số override, hoặc tạo 1 biến debug-only riêng KHÔNG đè lên `bundleId` gốc), và nếu vẫn phải sửa tạm `bundleId`, PHẢI tự nhắc lại rõ ràng trong tổng kết cuối phiên "còn 1 dòng debug tạm CẦN REVERT trước khi commit — đã revert chưa" và **tự kiểm tra bằng `git diff` dòng đó đã về đúng `DeviceInfo.getBundleId()` trước khi coi việc là xong**, không dựa vào comment tự nhắc rồi quên.
 - Trước khi báo "xong" bất kỳ việc gì đụng tới `AppConstant.ts`: `grep "export const bundleId" src/app/common/AppConstant.ts` PHẢI trả về đúng `DeviceInfo.getBundleId()`, không phải 1 hằng số bundle id cụ thể nào.
 
+### 6.9 Icon vector trong menu/settings — dùng `SettingList.iconName`, không tự import `react-native-vector-icons` rải rác
+Bug thật đã phát hiện (2026-08-01): `react-native-vector-icons` bị tắt autolink cho iOS suốt từ 1 commit "Temp commit"/"WIP" (2025-10-27, `react-native.config.js` có `platforms: {ios: null}`) — không có pod `RNVectorIcons`, không có font nào trong `Info.plist` `UIAppFonts`. Android cũng thiếu dòng `apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")` trong `android/app/build.gradle`. Cả 2 nền tảng đã được vá (xem plan `.claude/app-plans/vector-icons-menu.md`) — **nhưng nếu thêm platform mới hoặc cấu hình build lại từ đầu, kiểm tra lại đúng 3 điểm này trước khi tin vector icon hiển thị được**:
+1. `react-native.config.js` KHÔNG được có `platforms: {ios: null}` (hay tương tự) cho `react-native-vector-icons`.
+2. `ios/CareAi/Info.plist` → `UIAppFonts` phải liệt kê đủ font `.ttf` của MỌI `react-native-vector-icons/<Family>` đang được import ở đâu đó trong `src` (`grep -rohE "from 'react-native-vector-icons/[A-Za-z0-9_]+'" src | sort -u` để dò).
+3. `android/app/build.gradle` phải có dòng `apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")`.
+
+**Pattern chuẩn cho icon trong menu/settings từ nay về sau**: dùng `SettingItem.iconName` + `iconLibrary` (mặc định `MaterialCommunityIcons`) — `SettingList` (`src/app/components/SettingList/index.tsx`) tự render đúng component vector icon, fallback về `<Image source={item.icon}>` nếu không khai `iconName`. Trước khi dùng 1 tên icon, xác nhận nó có thật trong đúng version đang cài bằng `grep "\"<tên>\":" node_modules/react-native-vector-icons/glyphmaps/<Family>.json` — đừng đoán tên icon từ trí nhớ, dễ sai vì mỗi bộ icon có hàng nghìn tên, không phải tên nào "nghe hợp lý" cũng tồn tại.
+
 ---
 
 ## 7. Nhật ký sai lầm & cải tiến — cách cập nhật khi làm sai
