@@ -263,6 +263,19 @@ Bug thật đã phát hiện (2026-08-01): `react-native-vector-icons` bị tắ
 
 **Pattern chuẩn cho icon trong menu/settings từ nay về sau**: dùng `SettingItem.iconName` + `iconLibrary` (mặc định `MaterialCommunityIcons`) — `SettingList` (`src/app/components/SettingList/index.tsx`) tự render đúng component vector icon, fallback về `<Image source={item.icon}>` nếu không khai `iconName`. Trước khi dùng 1 tên icon, xác nhận nó có thật trong đúng version đang cài bằng `grep "\"<tên>\":" node_modules/react-native-vector-icons/glyphmaps/<Family>.json` — đừng đoán tên icon từ trí nhớ, dễ sai vì mỗi bộ icon có hàng nghìn tên, không phải tên nào "nghe hợp lý" cũng tồn tại.
 
+### 6.10 Ngưỡng số liệu y tế (cảnh báo/công thức) — luôn đối chiếu nguồn chuẩn, và đối chiếu chéo với bảng tra cứu tĩnh nếu app đã có sẵn
+Bug thật đã phát hiện ở app BloodSugar (2026-08-01, xem `.claude/app-plans/bloodsugar-fixes.md`): bảng ngưỡng phân loại đường huyết dùng để TÍNH TOÁN THẬT (`BloodSugarLevelsByState`) bị lệch 1 đơn vị so với chuẩn ADA ở MỌI biên (70-100 thay vì 70-99, 70-140 thay vì 70-139, trùng biên 200 giữa 2 mức) — trong khi 1 bảng tra cứu TĨNH khác trong CHÍNH app đó (`GlucoseTable`, chỉ hiển thị thông tin, không dùng để tính) lại ghi đúng ngưỡng chuẩn. Ngoài ra 1 trạng thái (sau ăn) còn thiếu hẳn tier "hạ đường huyết" — khiến 1 kết quả đo nguy hiểm thật (thấp) không hiện cảnh báo gì (trả `null` thay vì mức cảnh báo).
+
+**Quy tắc**: khi viết/sửa bất kỳ bảng ngưỡng số liệu y tế nào (đường huyết, huyết áp, nhịp tim, BMI...):
+1. Nêu rõ nguồn chuẩn dùng (VD: ADA, WHO, AHA) ngay trong comment cạnh bảng ngưỡng — không chỉ đoán số "nghe hợp lý".
+2. Nếu app đã có sẵn bảng tra cứu tĩnh (info/help/wiki screen) mô tả cùng chỉ số — ĐỐI CHIẾU 2 bảng phải khớp nhau. Nếu lệch, đó gần như chắc chắn là lỗi code hoá (off-by-one), không phải 2 chủ đích thiết kế khác nhau — bảng tĩnh thường đúng hơn vì ít khi bị sửa lại theo thời gian.
+3. Viết Jest test cho đúng các giá trị BIÊN (không chỉ giá trị giữa mức) — lỗi loại này luôn nằm ở biên, test giữa mức không bao giờ bắt được.
+4. Kiểm tra MỌI trạng thái/ngữ cảnh đều có đủ tier cảnh báo thấp NHẤT (hypoglycemia/tương đương) — đừng chỉ copy-paste 1 phần bảng ngưỡng rồi quên thêm tier nguy hiểm nhất.
+5. Giá trị mặc định cho ô nhập liệu y tế (default khi tạo bản ghi mới) KHÔNG được rơi vào vùng cảnh báo của chính bảng ngưỡng vừa định nghĩa, và phải phụ thuộc đúng đơn vị đang chọn (không hardcode 1 số bất kể mg/dL hay mmol/L).
+
+### 6.11 File tính toán thuần bị kéo theo `reactotron-react-native` qua barrel import — tách riêng để test được
+Giống mục 6.6 (RNFS) nhưng với thư viện khác: import `src/app/common/bloodSugar/Data.ts` dưới Jest bị lỗi `ReferenceError: XMLHttpRequest is not defined` vì `Data.ts` → `bloodPressure/Data.ts` → `baby/KidGrow.ts` → `import {Images} from '..'` (barrel `common/index.js`) → `common/index.js` tự import `reactotron-react-native` không điều kiện ở đầu file. **Quy tắc chung**: nếu 1 file chứa logic thuần cần test (không phải chỉ riêng bloodSugar) bị kéo theo lỗi tương tự khi chạy Jest — đừng cố sửa import chain gốc (rủi ro cao, ảnh hưởng diện rộng vì `common/index.js` là barrel dùng khắp app) — tách đúng phần logic thuần (0 side-effect import) sang 1 file riêng không import gì từ `common/index.js`/native module, rồi cho file gốc `export *` lại từ đó để không đổi API cũ. Đã áp dụng 2 lần (`cloudSyncMerge.ts` cho RNFS, `glucoseLevels.ts` cho reactotron) — coi đây là pattern chuẩn, không phải giải pháp tạm.
+
 ---
 
 ## 7. Nhật ký sai lầm & cải tiến — cách cập nhật khi làm sai
