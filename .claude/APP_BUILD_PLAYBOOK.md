@@ -243,6 +243,18 @@ Bug thật đã gặp trong `src/redux/aura/auraSaga.ts` (AuraTune — relax/sle
 1. Nếu cần lặp lại 1 track liên tục (ambient/relax/sleep sound) — dùng `SoundPlayer.setNumberOfLoops(-1)` (native, gọi lại sau mỗi `playUrl`/`playSoundFile` vì Android chỉ áp dụng được khi `MediaPlayer` đã tồn tại — xem comment trong `play()` ở `auraSaga.ts`), **đừng tự chế lặp bằng cách bắt `FinishedPlaying` rồi gọi lại hàm play** — vừa dễ leak, vừa có khoảng lặng giữa 2 lượt phát mà native loop không có.
 2. Nếu thực sự cần lắng nghe 1 sự kiện `SoundPlayer` lặp lại theo thời gian sống app (không phải theo mỗi lần phát) — đăng ký **đúng 1 lần** bằng `redux-saga`'s `eventChannel` (fork 1 saga watcher duy nhất ở root, đọc state mới nhất qua `select` mỗi lần channel emit — không dùng closure cũ), xem `watchSetupError`/`createSetupErrorChannel` trong `auraSaga.ts` làm mẫu tham chiếu. Nếu không dùng redux-saga, lưu lại `EmitterSubscription` trả về và gọi `.remove()` đúng lúc unmount — không bao giờ tin `unmount()` của thư viện tự gỡ hộ.
 
+### 6.8 KHÔNG BAO GIỜ hardcode `bundleId` để test trên simulator rồi commit — đã xảy ra thật, phá vỡ TOÀN BỘ factory
+Bug thật đã xảy ra (commit `52334fd` "Add salon toc app"): để smoke-test 1 app trên simulator (không đổi `applicationId`/scheme thật được), đã sửa tạm `src/app/common/AppConstant.ts`:
+```ts
+export const bundleId = SALON_BUNDLE_ID; // TEMP DEV OVERRIDE — REVERT before commit
+```
+Comment tự ghi rõ "revert trước khi commit" nhưng vẫn bị commit nguyên vẹn — vì `bundleId` là biến DUY NHẤT mọi `is<Ten>App` trong CẢ ~90 app đều suy ra từ đó, hậu quả là **mọi build của MỌI app** (không riêng salon) đều render sai thành đúng 1 app cố định, cho tới khi bị phát hiện (may mắn là phát hiện được ngay, nhưng đã tồn tại qua ít nhất 1 commit).
+
+**Quy tắc cứng, không có ngoại lệ**:
+- **KHÔNG BAO GIỜ sửa dòng `export const bundleId = DeviceInfo.getBundleId();`** trong `AppConstant.ts` để hardcode 1 giá trị cụ thể, kể cả tạm thời để test — dòng này là điểm suy ra danh tính của TOÀN BỘ factory, không phải config của 1 app.
+- Nếu cần test 1 app cụ thể trên simulator mà không đổi bundle id build thật được: test bằng cách tạm sửa Ở NƠI GỌI (VD truyền `bundle` param tường minh vào các hàm `getAppId(bundle?)`/`getAppName()` nếu hàm đó nhận tham số override, hoặc tạo 1 biến debug-only riêng KHÔNG đè lên `bundleId` gốc), và nếu vẫn phải sửa tạm `bundleId`, PHẢI tự nhắc lại rõ ràng trong tổng kết cuối phiên "còn 1 dòng debug tạm CẦN REVERT trước khi commit — đã revert chưa" và **tự kiểm tra bằng `git diff` dòng đó đã về đúng `DeviceInfo.getBundleId()` trước khi coi việc là xong**, không dựa vào comment tự nhắc rồi quên.
+- Trước khi báo "xong" bất kỳ việc gì đụng tới `AppConstant.ts`: `grep "export const bundleId" src/app/common/AppConstant.ts` PHẢI trả về đúng `DeviceInfo.getBundleId()`, không phải 1 hằng số bundle id cụ thể nào.
+
 ---
 
 ## 7. Nhật ký sai lầm & cải tiến — cách cập nhật khi làm sai
@@ -267,6 +279,7 @@ Không cần xin phép người dùng để cập nhật file playbook/plan khi 
 - [ ] State time-series KHÔNG nằm trong reducer đã whitelist persist
 - [ ] Không có route name trùng trong `APP_ROUTER`
 - [ ] Không sửa `project.pbxproj`/entitlements dùng chung bằng tay
+- [ ] `export const bundleId = DeviceInfo.getBundleId();` trong `AppConstant.ts` KHÔNG bị hardcode thành 1 bundle id cụ thể (xem mục 6.8 — bug thật đã phá vỡ toàn bộ factory)
 - [ ] Đã viết Jest test thật cho logic nghiệp vụ quan trọng, đã CHẠY THẬT (không chỉ viết)
 - [ ] `git diff --stat` xác nhận phạm vi thay đổi đúng như plan, không lan ra ngoài
 - [ ] Đã kiểm tra không có setting/toggle nào "chết" (không gây hiệu ứng gì)
