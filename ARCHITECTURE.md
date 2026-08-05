@@ -22,7 +22,13 @@ careai/                              ← repo git riêng (chỉ chứa .claude/ 
 │
 ├── salon-web/     ─┐  [ĐỘC LẬP repo] gọi API qua dvc-api/apps/salon
 ├── beverage-web/  ─┤  [CHƯA CÓ git]  gọi API qua dvc-api/apps/beverage
-│                    └─ cả 2 đều: Vite + React + TS, VITE_API_BASE_URL trỏ vào dvc-api gateway (localhost:8080 local)
+├── reviews-web/   ─┘  [CHƯA CÓ git]  gọi API qua dvc-api/apps/reviews
+│                    └─ cả 3 đều: Vite + React + TS + Tailwind, VITE_API_BASE_URL trỏ vào dvc-api gateway (localhost:8080 local)
+│
+├── dvc-worker/                      ← [CHƯA CÓ git] repo riêng dự kiến, độc lập ngôn ngữ với dvc-api (Python/FastAPI, không phải Go)
+│                                       Crawler đa nguồn (TMĐT/blog-review/YouTube) sinh dữ liệu + bài viết cho reviews-web.
+│                                       Có trang admin quản lý nguồn tin riêng (port 8090 local). Đẩy dữ liệu đã xử lý sang
+│                                       dvc-api/apps/reviews qua admin API (chưa build ở milestone đầu — xem dvc-worker/README.md).
 │
 └── velox-web/                       ← [ĐỘC LẬP, không liên quan gì tới các project trên]
                                         repo riêng: 1MobileApp/velox-web.git
@@ -43,9 +49,18 @@ careai/                              ← repo git riêng (chỉ chứa .claude/ 
 - **`dvc-api`** (`git@github.com:1MobileApp/app-api.git`, nhánh `main`): backend Golang monorepo (Go workspace), kiến trúc microservices thật — `platform/gateway` (reverse-proxy + rate-limit + CORS, cửa ngõ public duy nhất), `platform/iam` (auth, MongoDB, JWT RS256), `platform/payment`, `platform/fileupload`, `platform/shipping`, và `apps/salon` + `apps/beverage` (business logic riêng từng app, tự khai DB). Chạy qua Docker Compose, public qua Cloudflare Tunnel. **Xem `dvc-api/docs/ARCHITECTURE.md` để biết chi tiết đầy đủ** (data model, token flow, bài học CORS đã gặp, changelog).
 - **`salon-web`** (`git@github.com:1MobileApp/salon-web.git`, nhánh `main`): frontend Vite + React + TS + Tailwind cho "Aurée Salon" — demo đặt lịch salon, gọi thật `dvc-api/apps/salon` qua gateway. Xem `salon-web/TASKS.md` cho trạng thái từng tính năng + cách verify.
 - **`beverage-web`** (chưa có git repo riêng): frontend Vite + React + TS + Tailwind cho app đặt đồ uống, gọi `dvc-api/apps/beverage` qua gateway.
-- Cả 2 frontend đọc backend URL qua `.env.local` → `VITE_API_BASE_URL=http://localhost:8080` (local, cần `make up` trong `dvc-api` trước). Production URL còn trống — chờ `dvc-api` xong Cloudflare Tunnel + domain public.
+- **`reviews-web`** (chưa có git repo riêng): frontend Vite + React + TS + Tailwind cho "SoSánhGiá" — website review/so sánh giá sản phẩm + blog + trang quản trị, gọi `dvc-api/apps/reviews` qua gateway. 7 trang công khai (trang chủ, tìm kiếm, danh sách/chi tiết sản phẩm, so sánh, danh sách/chi tiết blog) + admin CRUD 9 loại nội dung. Xem `dvc-api/docs/apps/reviews.md` cho backend, `.env.local` của `reviews-web` cho `VITE_APP_KEY` (tenant riêng, seed qua `platform/iam/cmd/seed-tenant`).
+- Cả 3 frontend đọc backend URL qua `.env.local` → `VITE_API_BASE_URL=http://localhost:8080` (local, cần `make up` trong `dvc-api` trước). Production URL còn trống — chờ `dvc-api` xong Cloudflare Tunnel + domain public.
 
-## 3. velox-web — Website công ty (độc lập)
+## 3. dvc-worker — Crawler đa nguồn cho reviews-web
+
+- **Repo**: `dvc-worker/` (chưa git-track — tạo repo riêng khi sẵn sàng, giống `beverage-web`/`reviews-web`).
+- **Là gì**: service Python/FastAPI hoàn toàn độc lập với `dvc-api` (khác ngôn ngữ, khác DB Postgres riêng port 5433) — crawl dữ liệu sản phẩm/giá (TMĐT), bài viết/review (blog/site so sánh), video (YouTube transcript) để làm nguyên liệu cho `reviews-web`. Kiến trúc generic-first: thêm 1 site nguồn mới là thêm 1 `Source` (cấu hình JSON qua trang admin), không phải viết code mới — trừ khi cần 1 "chiến lược fetch" hoàn toàn mới (xem `dvc-worker/README.md`).
+- Có trang quản trị riêng (Jinja2, không phải SPA — cố ý giữ đơn giản) ở `/admin`, port 8090 local, tách biệt hoàn toàn với các trang admin của `salon-web`/`reviews-web`.
+- **Trạng thái hiện tại**: crawl + lưu dữ liệu gốc (có đủ quan hệ để sau này ghép "sản phẩm giống nhau giữa nhiều nguồn"/gợi ý tương tự) — ĐÃ nối xong bước đẩy dữ liệu sang `dvc-api/apps/reviews` (nút "Đẩy sang Review" trong trang admin, gọi admin API reviews bằng 1 tài khoản admin riêng seed cho `dvc-worker`, ghi `Offer.source='crawler'`). Job "xào nấu" nội dung bằng LLM (viết lại/tổng hợp bài đánh giá) vẫn CHƯA build — milestone sau. Xem `dvc-worker/README.md`.
+- Không chia sẻ code/DB với `dvc-api` — ranh giới service-to-service, sẽ chỉ giao tiếp qua HTTP khi bước đẩy dữ liệu được build.
+
+## 4. velox-web — Website công ty (độc lập)
 
 - **Repo**: `git@github.com:1MobileApp/velox-web.git` (nhánh `main`)
 - **Là gì**: website giới thiệu công ty phát triển phần mềm outsource. Vite + React + TS, tĩnh, không gọi API nào trong workspace này. Không chia sẻ code/hạ tầng với 4 project còn lại.
@@ -61,3 +76,4 @@ careai/                              ← repo git riêng (chỉ chứa .claude/ 
 | Ngày | Thay đổi |
 |---|---|
 | 2026-08-01 | Khởi tạo `ARCHITECTURE.md` + git hoá `.claude/` (remote `thanhpn/app-md.git`), thêm `CLAUDE.md` stub tham chiếu vào từng project con. |
+| 2026-08-02 | Thêm `dvc-worker/` (project thứ 6) — crawler đa nguồn Python/FastAPI cho `reviews-web`, độc lập ngôn ngữ với `dvc-api`. |

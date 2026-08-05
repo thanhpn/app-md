@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa nguồn" if source else "Thêm nguồn" }}{% endblock %}
+{% block content %}
+<h1>{{ "Sửa nguồn: " + source.name if source else "Thêm nguồn mới" }}</h1>
+<p class="subtitle">Cấu hình chi tiết (selector/URL) nằm trong ô JSON bên dưới — xem ví dụ theo từng adapter trong README.</p>
+
+{% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+
+<form class="stack" method="post" action="{{ '/admin/sources/' + source.id|string + '/edit' if source else '/admin/sources/new' }}">
+  <div>
+    <label>Tên nguồn</label>
+    <input type="text" name="name" value="{{ form.name if form else (source.name if source else '') }}" required />
+  </div>
+  <div>
+    <label>Slug (định danh duy nhất, không dấu, không khoảng trắng)</label>
+    <input type="text" name="slug" value="{{ form.slug if form else (source.slug if source else '') }}" required pattern="[a-z0-9-]+" />
+  </div>
+  <div>
+    <label>Loại nguồn</label>
+    <select name="source_type" required>
+      {% for t in ["ecommerce_product", "review_article", "youtube_channel"] %}
+      <option value="{{ t }}" {{ "selected" if (form.source_type if form else (source.source_type if source else "")) == t else "" }}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label>Adapter</label>
+    <select name="adapter_key" required>
+      {% for a in ["generic_html_product", "generic_article", "youtube_channel", "shopee_affiliate"] %}
+      <option value="{{ a }}" {{ "selected" if (form.adapter_key if form else (source.adapter_key if source else "")) == a else "" }}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">generic_html_product = trang sản phẩm TMĐT (CSS selector) · generic_article = blog/review (tự trích xuất) · youtube_channel = kênh YouTube (transcript) · shopee_affiliate = Shopee Affiliate Open API (cần <code class="small">SHOPEE_AFFILIATE_APP_ID</code>/<code class="small">SECRET</code> trong .env, KHÔNG phải config JSON)</p>
+  </div>
+  <div>
+    <label>Base URL</label>
+    <input type="text" name="base_url" value="{{ form.base_url if form else (source.base_url if source else '') }}" placeholder="https://example.com" required />
+  </div>
+  <div>
+    <label>Config (JSON)</label>
+    <textarea name="config" rows="10" placeholder='{"seed_urls": ["https://..."], "selectors": {"name": "h1"}}'>{{ form.config if form else (source.config | tojson(indent=2) if source else "{}") }}</textarea>
+    <p class="hint">Xem cấu trúc config từng adapter trong docstring <code class="small">app/adapters/*.py</code> hoặc README.</p>
+  </div>
+  <div>
+    <label>Lịch chạy tự động (cron, để trống = chỉ chạy thủ công)</label>
+    <input type="text" name="schedule_cron" value="{{ form.schedule_cron if form else (source.schedule_cron if source else '') }}" placeholder="0 */6 * * *" />
+  </div>
+  <div>
+    <label>Trạng thái</label>
+    <select name="status">
+      {% for st in ["active", "paused"] %}
+      <option value="{{ st }}" {{ "selected" if (form.status if form else (source.status if source else "active")) == st else "" }}>{{ st }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="actions-row">
+    <button class="btn primary" type="submit">Lưu</button>
+    <a class="btn" href="/admin/sources">Huỷ</a>
+  </div>
+</form>
+{% endblock %}

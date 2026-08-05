@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  /* "Mượn Ngay" palette: warm terracotta/orange brand (sharing/community
+     feel per the plan's design notes — deliberately NOT reviews-web's cold
+     indigo/coral), warm-neutral canvas, teal as the single secondary accent
+     (orange/teal is a classic accessible complementary pairing). */
+  --color-canvas: #fbf7f2;
+  --color-surface: #ffffff;
+  --color-ink: #2a2118;
+  --color-ink-soft: #6b6058;
+  --color-ink-faint: #a39889;
+  --color-line: #ede2d3;
+
+  --color-brand: #c2410c;
+  --color-brand-dark: #9a3412;
+  --color-brand-light: #ffedd5;
+
+  --color-accent: #0d9488;
+  --color-accent-dark: #0f766e;
+  --color-accent-light: #ccfbf1;
+
+  --color-success: #16a34a;
+  --color-success-light: #f0fdf4;
+  --color-star: #eab308;
+
+  --color-danger: #dc2626;
+  --color-danger-dark: #b91c1c;
+  --color-danger-light: #fef2f2;
+
+  --color-warning: #b45309;
+  --color-warning-light: #fffbeb;
+
+  --color-info: #1d4ed8;
+  --color-info-light: #eff6ff;
+
+  --color-neutral: #6b6058;
+  --color-neutral-light: #f3f1ed;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Manrope", "Inter", system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+}
+
+/* Line-clamp utilities (Tailwind v4 has no built-in plugin bundled here). */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

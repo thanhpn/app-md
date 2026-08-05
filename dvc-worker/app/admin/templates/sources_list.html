@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Nguồn tin{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h1>Nguồn tin</h1>
+    <p class="subtitle">Mỗi nguồn là 1 site/kênh sẽ được crawl định kỳ hoặc thủ công.</p>
+  </div>
+  <a class="btn primary" href="/admin/sources/new">+ Thêm nguồn</a>
+</div>
+
+{% if sources %}
+<table>
+  <thead>
+    <tr>
+      <th>Tên</th>
+      <th>Loại</th>
+      <th>Adapter</th>
+      <th>Lịch chạy</th>
+      <th>Trạng thái</th>
+      <th>Chạy gần nhất</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in sources %}
+    <tr>
+      <td><a href="/admin/sources/{{ s.id }}/edit">{{ s.name }}</a><br><span class="hint">{{ s.base_url }}</span></td>
+      <td>{{ s.source_type }}</td>
+      <td><code class="small">{{ s.adapter_key }}</code></td>
+      <td>{{ s.schedule_cron or "Thủ công" }}</td>
+      <td><span class="badge {{ s.status }}">{{ s.status }}</span></td>
+      <td>{{ s.last_run_at.strftime("%d/%m/%Y %H:%M") if s.last_run_at else "Chưa chạy" }}</td>
+      <td>
+        <div class="actions-row">
+          <form method="post" action="/admin/sources/{{ s.id }}/run">
+            <button class="btn small" type="submit">Chạy ngay</button>
+          </form>
+          <a class="btn small" href="/admin/runs?source_id={{ s.id }}">Lịch sử</a>
+          <a class="btn small" href="/admin/products?source_id={{ s.id }}">Sản phẩm</a>
+          <form method="post" action="/admin/sources/{{ s.id }}/delete" onsubmit="return confirm('Xoá nguồn này? Toàn bộ dữ liệu đã crawl liên quan cũng sẽ bị xoá.');">
+            <button class="btn small danger" type="submit">Xoá</button>
+          </form>
+        </div>
+        {% if s.source_type == "ecommerce_product" %}
+        <form method="post" action="/admin/sources/{{ s.id }}/push" class="actions-row" style="margin-top:6px;">
+          <input type="text" name="category_name" placeholder="Danh mục Review (VD: Điện lạnh)" value="{{ s.reviews_category_id and 'Đã liên kết danh mục' or '' }}" required style="width:220px;" />
+          <button class="btn small primary" type="submit">Đẩy sang Review</button>
+        </form>
+        {% if s.reviews_category_id %}<p class="hint">Đã liên kết danh mục Review (id: {{ s.reviews_category_id[:8] }}…) — lần đẩy sau sẽ dùng lại, ô trên chỉ cần điền lại tên do form yêu cầu.</p>{% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="hint">Chưa có nguồn tin nào — bấm "Thêm nguồn" để bắt đầu.</p>
+{% endif %}
+{% endblock %}

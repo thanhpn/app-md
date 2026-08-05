@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>{% block title %}dvc-worker{% endblock %} · dvc-worker</title>
+  <link rel="stylesheet" href="/admin/static/style.css" />
+</head>
+<body>
+  {% if logged_in %}
+  <header class="topbar">
+    <span class="brand">dvc-worker</span>
+    <a href="/admin/sources">Nguồn tin</a>
+    <a href="/admin/runs">Lịch sử crawl</a>
+    <a href="/admin/products">Sản phẩm</a>
+    <a href="/admin/content">Bài viết/Review</a>
+    <form method="post" action="/admin/logout">
+      <button class="link" type="submit">Đăng xuất</button>
+    </form>
+  </header>
+  {% endif %}
+  <main>
+    {% if flash %}<div class="flash {{ flash_type or '' }}">{{ flash }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

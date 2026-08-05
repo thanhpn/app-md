@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Lịch sử crawl{% endblock %}
+{% block content %}
+<h1>Lịch sử crawl {% if source %}— {{ source.name }}{% endif %}</h1>
+{% if runs %}
+<table>
+  <thead>
+    <tr>
+      <th>Nguồn</th>
+      <th>Trạng thái</th>
+      <th>Bắt đầu</th>
+      <th>Kết thúc</th>
+      <th>Tìm thấy</th>
+      <th>Mới</th>
+      <th>Cập nhật</th>
+      <th>Lỗi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in runs %}
+    <tr>
+      <td>{{ sources_by_id.get(r.source_id, r.source_id) }}</td>
+      <td><span class="badge {{ r.status }}">{{ r.status }}</span></td>
+      <td>{{ r.started_at.strftime("%d/%m/%Y %H:%M:%S") }}</td>
+      <td>{{ r.finished_at.strftime("%d/%m/%Y %H:%M:%S") if r.finished_at else "—" }}</td>
+      <td>{{ r.items_found }}</td>
+      <td>{{ r.items_new }}</td>
+      <td>{{ r.items_updated }}</td>
+      <td>
+        {% if r.errors_count %}
+        <span class="badge failed">{{ r.errors_count }}</span>
+        {% if r.error_summary %}<div class="hint">{{ r.error_summary[:200] }}</div>{% endif %}
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="hint">Chưa có lượt crawl nào.</p>
+{% endif %}
+{% endblock %}

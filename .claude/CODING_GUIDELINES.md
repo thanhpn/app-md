@@ -74,4 +74,5 @@ Tiêu chí thành công rõ ràng giúp bạn tự lặp độc lập. Tiêu ch�
 - `dvc-api/CLAUDE.md`
 - `salon-web/CLAUDE.md`
 - `beverage-web/CLAUDE.md`
+- `reviews-web/CLAUDE.md`
 - `velox-web/CLAUDE.md`

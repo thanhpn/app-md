@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Bài viết/Review đã crawl{% endblock %}
+{% block content %}
+<h1>Bài viết / Review đã crawl {% if source %}— {{ source.name }}{% endif %}</h1>
+{% if items %}
+<table>
+  <thead>
+    <tr>
+      <th>Tiêu đề</th>
+      <th>Loại</th>
+      <th>Tác giả</th>
+      <th>Nguồn</th>
+      <th>Độ dài</th>
+      <th>Lấy lúc</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in items %}
+    <tr>
+      <td>{{ c.title or "(không có tiêu đề)" }}</td>
+      <td>{{ c.content_type }}</td>
+      <td>{{ c.author or "—" }}</td>
+      <td>{{ sources_by_id.get(c.source_id, c.source_id) }}</td>
+      <td>{{ c.body|length }} ký tự</td>
+      <td>{{ c.fetched_at.strftime("%d/%m/%Y %H:%M") }}</td>
+      <td><a class="btn small" href="{{ c.external_ref }}" target="_blank" rel="noopener">Xem gốc</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="hint">Chưa có bài viết/review nào — chạy 1 nguồn kiểu review_article hoặc youtube_channel trước.</p>
+{% endif %}
+{% endblock %}

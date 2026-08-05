@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Sản phẩm đã crawl{% endblock %}
+{% block content %}
+<h1>Sản phẩm đã crawl {% if source %}— {{ source.name }}{% endif %}</h1>
+{% if products %}
+<table>
+  <thead>
+    <tr>
+      <th>Tên</th>
+      <th>Thương hiệu</th>
+      <th>Giá</th>
+      <th>Nguồn</th>
+      <th>Lần thấy gần nhất</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td>{{ p.brand or "—" }}</td>
+      <td>{{ "{:,.0f}".format(p.price) + " " + p.currency if p.price else "—" }}</td>
+      <td>{{ sources_by_id.get(p.source_id, p.source_id) }}</td>
+      <td>{{ p.last_seen_at.strftime("%d/%m/%Y %H:%M") }}</td>
+      <td><a class="btn small" href="{{ p.url }}" target="_blank" rel="noopener">Xem gốc</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="hint">Chưa có sản phẩm nào — chạy 1 nguồn kiểu ecommerce_product trước.</p>
+{% endif %}
+{% endblock %}

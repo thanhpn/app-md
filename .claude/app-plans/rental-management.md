@@ -130,6 +130,45 @@ Yêu cầu: kết hợp quản lý cho thuê dài hạn hiện có với cho thu
 
 **Giới hạn đã biết**: đồng bộ iCal là thủ công (người dùng bấm "Đồng bộ ngay"), không tự chạy nền — đúng chủ đích minh bạch, không phải thiếu sót. Bản ghi nhập từ iCal không có tên khách/giá (nền tảng không xuất công khai) — chủ trọ cần tự bổ sung nếu muốn theo dõi đầy đủ. Chưa test với 1 link iCal Airbnb thật (chỉ test bằng mẫu `.ics` dựng tay đúng cấu trúc đã biết) — nên tự thử với link thật trước khi coi là hoàn thiện, vì Airbnb có thể thay đổi định dạng xuất theo thời gian. Chưa bấm thử trên simulator/thiết bị thật trong phiên này.
 
+## Bổ sung: màn hình tổng quan phòng (Rooms Overview) — search + bộ lọc nâng cao (2026-08-02)
+
+Yêu cầu: 1 màn hình cho chủ trọ thấy TOÀN BỘ danh mục phòng (mọi tòa nhà) trong 1 lần nhìn — trạng thái, số người ở, nợ cước, vấn đề bảo trì (điện/nước) — kèm search mặc định theo tên, bộ lọc nâng cao ẩn/hiện khi bấm. Không cần backend — toàn bộ dữ liệu (Room.status, Contract cho occupancy, Invoice cho nợ, Room.assetChecklist cho vấn đề bảo trì) đã có sẵn local, chỉ chưa có nơi nào gộp lại thành 1 view.
+
+**Kiến trúc**: 1 hàm thuần mới `common/rental/roomOverview.ts` (`buildRoomOverviewRows`, `RoomOverviewRow`, `RoomSeverity`), KHÔNG thêm selector redux mới — component tự gọi các selector đã có (`getRooms`/`getProperties`/`getContracts`/`getTenants`/`getAllInvoices`) rồi tính trong `useMemo`, đúng cách `RentalHomeScreen` đã làm với `underFilledCount`. Tái dùng nguyên `computeDebtAging` (nợ quá hạn) và pattern `computeNextMaintenanceDate` (bảo dưỡng quá hạn) đã có, không viết lại logic. `severity` (`ok`/`warning`/`critical`) suy ra từ: status=repairing hoặc asset `broken` hoặc nợ quá hạn → critical; có nợ chưa tới hạn hoặc asset `needs_repair` hoặc sắp tới hạn bảo dưỡng → warning.
+
+**Màn hình**: `containers/Rental/RoomsOverviewScreen` — search bar luôn hiện (mặc định, lọc theo tên phòng/tòa nhà/tên người thuê), nút "Bộ lọc nâng cao ▾" ẩn mặc định (chip tòa nhà, chip trạng thái, toggle "chỉ có nợ"/"chỉ có vấn đề"). Card mỗi phòng: border-trái màu theo severity, badge trạng thái, occupancy/nợ/vấn đề bảo trì bằng icon emoji nhất quán với style Rental hiện có. Tap → `RoomDetailScreen`.
+
+**Entry point**: quick-action tile mới trên `RentalHomeScreen`, đặt ở hàng action đầu tiên (cạnh "Nhà trọ"/"Hóa đơn") — chủ đích tránh lặp lại lỗi "chôn hành động quan trọng" đã ghi ở 2 hàng changelog 2026-07-26/2026-07-27 bên dưới.
+
+**Không liên quan** tới backend ticket sửa chữa vừa build trong `dvc-api` (`docs/srs/rental-tenant-tickets.md`, cho vai trò Tenant qua app riêng chưa xây) — "vấn đề bảo trì" ở màn này lấy từ `Room.assetChecklist` local, không gọi API.
+
+**Verification đã thực hiện**: Jest thật — 8 test case mới cho `buildRoomOverviewRows` (phòng trống không vấn đề → ok; đang sửa → critical bất kể debt/maintenance; nợ quá hạn → critical; nợ chưa tới hạn → warning; asset broken → critical; asset needs_repair → warning; occupancy phòng ở ghép tính đúng `1 + memberTenantIds.length`; nhiều tòa nhà không lẫn dữ liệu) — `__tests__/rentalEngines.test.ts` 52/52 pass. `tsc` qua tsconfig cách ly đúng phạm vi (Rental + `navigation/**/*.js` + rootReducer/store/rootSaga/storage, theo đúng bài học mục 6.5 Playbook) — 0 lỗi trong file Rental/mới, 45 lỗi TS8010 noise có sẵn không đổi. `git diff --stat`: CareAi chỉ đụng 4 file có sẵn (test, RentalHomeScreen, navigation constants+index, thuần cộng thêm) + 2 file mới (`roomOverview.ts`, `RoomsOverviewScreen/`). **Chưa bấm thử trên simulator/thiết bị thật trong phiên này** (không có công cụ tương tác UI) — verify dựa trên đọc lại logic từng nhánh (search, filter, severity color, empty state) + Jest chạy thật cho phần logic, không phải quan sát trực tiếp trên app; nên tự tay bấm qua trước khi phát hành. Lúc wiring quick-action Home phát hiện tile "Phòng ở ghép" từng bị lặp 2 lần khi chèn tile mới — đã dọn lại, xác nhận qua đọc lại JSX cân bằng thẻ đóng/mở.
+
+## Bổ sung lớn: Owner sync client + app Tenant mới hoàn toàn (2026-08-02)
+
+Yêu cầu người dùng: app Tenant cần đủ 5 nhóm chức năng — xem thông tin, chi phí hàng tháng, báo lỗi, thông báo, liên hệ chủ nhà. Backend đã build xong (`dvc-api apps/rental`: auth qua `platform/iam`, phân quyền Owner/Manager/Tenant, sync generic, ticket 18 FR, `GET /me/room`/`GET /me/invoices` FR-19..FR-23 — xem `dvc-api/docs/srs/rental-tenant-tickets.md`), nhưng **chưa có mobile client nào gọi tới** — CareAi 100% local-only tới thời điểm này.
+
+**Quyết định lớn đã chốt qua AskUserQuestion**:
+1. "Liên hệ chủ nhà" chỉ qua thread tin nhắn gắn với ticket (không xây kênh chat tự do).
+2. Liên kết Tenant↔Room qua `room_id` thật (Owner chọn từ picker lúc mời), không phải `unit_label` gõ tay.
+3. Xây luôn client sync HTTP cho app Owner (giải quyết gốc việc Owner app chưa từng đồng bộ gì lên server) — không nhập tay tạm.
+
+**Quyết định kiến trúc quan trọng** (chi tiết đầy đủ trong plan đã duyệt, xem lịch sử trò chuyện hoặc `~/.claude/plans/harmonic-jumping-lamport.md` nếu còn):
+- Đăng nhập TÙY CHỌN — app Owner giữ nguyên local-only nếu không đăng nhập, "Đồng bộ đám mây" là mục mới trong Settings, không ép buộc.
+- `Property.id` local (client-generated) khác `id` server trả về (Postgres-generated) — khi bật cloud cho 1 tòa nhà, rewrite 1 lần: đổi `Property.id` + cascade toàn bộ `propertyId` tham chiếu (Room/Contract/Invoice/...) sang ID server, không giữ bảng mapping riêng.
+- Cơ chế sync: "đẩy toàn bộ, để server LWW tự loại trùng" (`sync_records.UpsertIfNewer` đã lọc theo `updated_at` ở tầng SQL) — không xây outbox/dirty-queue.
+- Quy ước `entity_type` khi push PHẢI khớp tên interface TypeScript (`"Room"`, `"Contract"`, `"Invoice"`...), payload nguyên object theo `src/app/types/rental.ts`.
+- Tái dùng hạ tầng có sẵn: `react-native-keychain` (lưu JWT, đã dùng cho `LockProvider`/`PasswordManager`), `generateUUIDv4()` (`src/app/utils/utils.ts:205`), `createNotification`/`cancelNotification` (`src/app/utils/notification.ts`), `react-native-qrcode-svg` + `react-native-vision-camera`/`@mgcrea/vision-camera-barcode-scanner` (đã cài, đủ cho QR mời 2 chiều), cấu trúc `useAutoCloudSync.ts` làm mẫu cho hook tự động sync HTTP.
+
+**8 milestone đã lên kế hoạch** (mỗi milestone ra 1 thứ test được):
+M1 nền tảng dùng chung (HTTP client + auth + Keychain) → M2 Owner bật đồng bộ đám mây/rewrite ID/push-pull → M3 Owner mời Manager/Tenant qua tài khoản thật (QR/email, chọn Room thật) → M4 Owner dashboard ticket → M5 app Tenant mới (bundle id `com.careai.rental.tenant`, scaffold + đăng nhập + liên kết nhà trọ) → M6 app Tenant Home (thông tin + chi phí, tính năng LÕI) → M7 app Tenant ticket + thông báo polling + liên hệ chủ nhà → M8 app Tenant cài đặt/đăng xuất.
+
+**Trạng thái**: M1 Done. Các milestone sau (M2..M8) build tuần tự sau khi được duyệt tiếp.
+
+**M1 đã build**: `src/app/services/rentalApiClient.ts` (`request<T>` thuần, envelope `{success,data,error}`, `RentalApiError`, `X-App-Key` chỉ gắn khi `appKey:true`), `src/app/services/rentalAuth.ts` (`register`/`login`/`logout`/`authRequest` với đúng 1 lần refresh-and-retry khi 401, lưu token qua `react-native-keychain` — KHÔNG AsyncStorage, đúng pattern đã dùng ở `LockProvider`/`PasswordManager`). Đăng nhập vẫn hoàn toàn tùy chọn — chưa có màn hình nào gọi tới các hàm này, app Owner không đổi hành vi.
+
+**Verification đã thực hiện**: Jest thật — 13 test case (`rentalApiClient.test.ts`: envelope thành công/lỗi, HTTP status không ok dù envelope success, 204 không đọc body, gắn đúng Authorization/X-App-Key có điều kiện; `rentalAuth.test.ts`: round-trip Keychain mock đúng API thật (`setGenericPassword`/`getGenericPassword`/`resetGenericPassword` với `service`), refresh-and-retry đúng 1 lần khi 401, KHÔNG retry lỗi domain khác như 403, xoá token + báo `RentalSessionExpiredError` khi refresh cũng thất bại) — toàn dự án 129/129 test logic pass (`App.test.tsx` fail vì lỗi babel/ESM có sẵn từ trước, không liên quan). `tsc` qua tsconfig cách ly (Rental + service mới + `navigation/**/*.js` + rootReducer/store/rootSaga/storage) — 0 lỗi mới, đúng 45 lỗi TS8010 noise có sẵn không đổi. **Verify hợp đồng dữ liệu thật với backend sống**: viết 1 script Node độc lập (`/tmp/verify_rentalauth_contract.js`, không giữ lại trong repo) gọi thật `register`→`login`→`GET /properties` (có token)→`refresh`→gọi lại `GET /properties` (token mới)→`logout`→gọi với token rác xác nhận đúng `401 UNAUTHORIZED` (chính là điều kiện `authRequest` dựa vào để quyết định có refresh-retry hay không) — toàn bộ khớp đúng type `TokenPair`/`RentalAccount` đã định nghĩa. Riêng phần đọc/ghi Keychain thật (native runtime) chưa test trên simulator/thiết bị thật trong phiên này (không có công cụ tương tác UI) — dựa trên unit test mock đúng API thật + đối chiếu cách dùng thật đã có ở `LockProvider`/`PasswordManager`, chưa phải quan sát trực tiếp.
+
 ## Monetization
 Giữ mô hình Free/Premium placeholder tĩnh như v1 (chưa có IAP thật, mục 6.4 Playbook).
 
